@@ -1,7 +1,6 @@
 import os
 
 from django.conf import settings
-from django.template import TemplateDoesNotExist
 from django.template.backends.django import DjangoTemplates
 from django.template.loader import get_template
 from django.utils import lru_cache
@@ -10,11 +9,6 @@ from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 
 from . import __file__ as forms_file
-
-try:
-    import jinja2
-except ImportError:
-    jinja2 = None
 
 ROOT = upath(os.path.dirname(forms_file))
 
@@ -25,41 +19,55 @@ def get_default_renderer():
     return renderer_class()
 
 
-class StandaloneTemplateRenderer(object):
-    """Render using only the built-in templates."""
+class BaseTemplateRenderer(object):
     def get_template(self, template_name):
-        return self.standalone_engine.get_template(template_name)
+        raise NotImplementedError('subclasses must implement get_template()')
 
     def render(self, template_name, context, request=None):
         template = self.get_template(template_name)
         return template.render(context, request=request).strip()
 
+
+class EngineRendererMixin(object):
+    def get_template(self, template_name):
+        return self.engine.get_template(template_name)
+
+
+class DjangoTemplateRenderer(EngineRendererMixin, BaseTemplateRenderer):
+    """
+    Load Django templates from app directories and the built-in widget
+    templates in django/forms/templates.
+    """
     @cached_property
-    def standalone_engine(self):
-        if jinja2:
-            from django.template.backends.jinja2 import Jinja2
-            return Jinja2({
-                'APP_DIRS': False,
-                'DIRS': [os.path.join(ROOT, 'jinja2')],
-                'NAME': 'djangoforms',
-                'OPTIONS': {},
-            })
+    def engine(self):
         return DjangoTemplates({
-            'APP_DIRS': False,
+            'APP_DIRS': True,
             'DIRS': [os.path.join(ROOT, 'templates')],
             'NAME': 'djangoforms',
             'OPTIONS': {},
         })
 
 
-class TemplateRenderer(StandaloneTemplateRenderer):
-    """Render first via TEMPLATES, then fall back to built-in templates."""
+class Jinja2TemplateRenderer(EngineRendererMixin, BaseTemplateRenderer):
+    """
+    Load Jinja2 templates from app directories and the built-in widget
+    templates in django/forms/jinja2.
+    """
+    @cached_property
+    def engine(self):
+        from django.template.backends.jinja2 import Jinja2
+        return Jinja2({
+            'APP_DIRS': True,
+            'DIRS': [os.path.join(ROOT, 'jinja2')],
+            'NAME': 'djangoforms',
+            'OPTIONS': {},
+        })
+
+
+class ProjectTemplateRenderer(BaseTemplateRenderer):
+    """
+    Load templates using template.loader.get_template() which is configured
+    based on settings.TEMPLATES.
+    """
     def get_template(self, template_name):
-        try:
-            return get_template(template_name)
-        except TemplateDoesNotExist as e:
-            try:
-                return super(TemplateRenderer, self).get_template(template_name)
-            except TemplateDoesNotExist as e2:
-                e.chain.append(e2)
-            raise TemplateDoesNotExist(template_name, chain=e.chain)
+        return get_template(template_name)
