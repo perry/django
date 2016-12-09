@@ -29,7 +29,10 @@ class DjangoTemplates(BaseEngine):
         libraries = options.get('libraries', {})
         options['libraries'] = self.get_templatetag_libraries(libraries)
         super(DjangoTemplates, self).__init__(params)
-        self.engine = Engine(self.dirs, self.app_dirs, **options)
+        self.engine = Engine(
+            self.dirs, self.app_dirs, post_app_dirs=self.post_app_dirs,
+            **options
+        )
 
     def from_string(self, template_code):
         return Template(self.engine.from_string(template_code), self)

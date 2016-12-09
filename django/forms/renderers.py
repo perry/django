@@ -42,7 +42,8 @@ class DjangoTemplateRenderer(EngineRendererMixin, BaseTemplateRenderer):
     def engine(self):
         return DjangoTemplates({
             'APP_DIRS': True,
-            'DIRS': [os.path.join(ROOT, 'templates')],
+            'DIRS': [],
+            'POST_APP_DIRS': [os.path.join(ROOT, 'templates')],
             'NAME': 'djangoforms',
             'OPTIONS': {},
         })
@@ -58,7 +59,8 @@ class Jinja2TemplateRenderer(EngineRendererMixin, BaseTemplateRenderer):
         from django.template.backends.jinja2 import Jinja2
         return Jinja2({
             'APP_DIRS': True,
-            'DIRS': [os.path.join(ROOT, 'jinja2')],
+            'DIRS': [],
+            'POST_APP_DIRS': [os.path.join(ROOT, 'jinja2')],
             'NAME': 'djangoforms',
             'OPTIONS': {},
         })
